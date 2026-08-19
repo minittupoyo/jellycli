@@ -138,8 +138,8 @@ intentionally avoided.
    `go test ./...`, `go vet ./...`, and build.
 2. **Configuration (complete):** XDG resolution, atomic permission-safe
    persistence, device ID generation, settings/auth split, and validation tests.
-3. **Authentication:** HTTP foundation, MediaBrowser header, login, token/user
-   capture, saved-token validation, logout; `httptest` coverage.
+3. **Authentication (complete):** HTTP foundation, MediaBrowser header, login,
+   token/user capture, saved-token validation, logout, and `httptest` coverage.
 4. **Jellyfin browsing API:** typed pagination and DTOs for views, item hierarchy,
    resume, next-up, and latest; fixture/contract tests.
 5. **CLI libraries:** commands and readable list output with exit-code mapping.
@@ -182,6 +182,22 @@ Persistent types deliberately contain no password field. Relative XDG base paths
 are rejected because the XDG specification requires absolute paths. Server URLs
 accept only absolute HTTP(S) URLs without embedded credentials, queries, or
 fragments; a Jellyfin base path remains supported.
+
+## Phase 3 decisions
+
+The Jellyfin client owns URL joining, JSON size limits, MediaBrowser authorization,
+and HTTP status classification. Its HTTP executor is injected, and authenticated
+clients are immutable copies created with `WithToken`, avoiding a token mutation
+race. Login sends only the OpenAPI `Username` and `Pw` fields and never includes
+the password in an error. Non-success response bodies are not echoed because they
+are untrusted and may contain reflected secrets.
+
+Authorization metadata is sent using the modern `Authorization: MediaBrowser ...`
+form. Values are URL-encoded before entering the structured header, preventing
+quotes or control characters in device metadata from altering its structure.
+Saved-token validation uses `GET /Users/Me`; server logout uses
+`POST /Sessions/Logout`. Persistence remains in the config package so the HTTP
+client does not gain filesystem responsibilities.
 
 ## Primary references
 
