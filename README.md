@@ -1,5 +1,7 @@
 # jellycli
 
+[日本語](README.ja.md) | English
+
 [![Build](https://github.com/minittupoyo/jellycli/actions/workflows/build.yml/badge.svg)](https://github.com/minittupoyo/jellycli/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/minittupoyo/jellycli)](https://github.com/minittupoyo/jellycli/releases/latest)
 
@@ -95,6 +97,7 @@ If credentials may have been exposed, revoke the Jellyfin access token and run `
 - [Architecture](docs/architecture.md)
 - [Detailed design and implementation history](docs/design.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Japanese documentation](README.ja.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 

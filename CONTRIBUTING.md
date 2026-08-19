@@ -1,5 +1,7 @@
 # Contributing
 
+[日本語](CONTRIBUTING.ja.md)
+
 Thank you for your interest in improving `jellycli`.
 
 ## Development setup

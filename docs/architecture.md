@@ -1,5 +1,7 @@
 # Architecture
 
+[日本語](architecture.ja.md)
+
 `jellycli` keeps terminal presentation, Jellyfin communication, and player control separated so each can be tested and evolved independently.
 
 ```text

@@ -1,5 +1,7 @@
 # Troubleshooting
 
+[日本語](troubleshooting.ja.md)
+
 ## Login expires or requests are unauthorized
 
 Run `jellycli login` again. If the old token may be compromised, revoke it from the Jellyfin dashboard first.
