@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	"jellycli/internal/jellyfin"
 )
@@ -59,5 +60,31 @@ func TestBuildPlanRejectsIncompatibleSources(t *testing.T) {
 	_, err := BuildPlan("item", jellyfin.PlaybackInfoResponse{MediaSources: []jellyfin.MediaSource{{ID: "source"}}})
 	if !errors.Is(err, ErrNoCompatibleMedia) {
 		t.Fatalf("error = %v, want ErrNoCompatibleMedia", err)
+	}
+}
+
+func TestPlanMediaPreservesBasePathAndUsesTokenHeader(t *testing.T) {
+	plan := Plan{Resource: "/Videos/item/stream?static=true", RequiredHeaders: map[string]string{"Referer": "value"}}
+	media, err := plan.Media("https://media.example.test/jellyfin/", "secret-token", "Title", 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if media.URL != "https://media.example.test/jellyfin/Videos/item/stream?static=true" {
+		t.Fatalf("URL = %q", media.URL)
+	}
+	if media.Headers["X-Emby-Token"] != "secret-token" || media.Headers["Referer"] != "value" {
+		t.Fatalf("Headers = %#v", media.Headers)
+	}
+	if media.StartTime != 30*time.Second || media.Title != "Title" {
+		t.Fatalf("Media = %#v", media)
+	}
+}
+
+func TestPlanMediaRejectsCrossOriginAndTokenOverride(t *testing.T) {
+	if _, err := (Plan{Resource: "https://evil.example/video"}).Media("https://media.example", "token", "", 0); err == nil {
+		t.Fatal("Media() cross-origin error = nil")
+	}
+	if _, err := (Plan{Resource: "/video", RequiredHeaders: map[string]string{"x-emby-token": "evil"}}).Media("https://media.example", "token", "", 0); err == nil {
+		t.Fatal("Media() token override error = nil")
 	}
 }

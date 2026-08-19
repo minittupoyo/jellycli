@@ -146,8 +146,8 @@ intentionally avoided.
    token validation, and readable list output with exit-code mapping.
 6. **PlaybackInfo (complete):** explicit mpv device profile, source parsing, and
    mode-neutral playback-plan selection tests.
-7. **mpv Direct Play:** Player contract, process runner, URL/header handling,
-   resume option, missing-binary/startup errors.
+7. **mpv Direct Play (complete):** Player contract, process runner, URL/header
+   handling, resume option, and missing-binary/startup errors.
 8. **mpv JSON IPC:** request correlation, event reader, property observation,
    pause/resume/seek/position/duration/stop, fake-socket tests.
 9. **Playback sync:** start/progress/stopped state machine, cancellation/signals,
@@ -244,6 +244,27 @@ resource with media-source and play-session IDs. Direct Stream and Transcode use
 the URL negotiated by Jellyfin. Plans retain required upstream HTTP headers and
 runtime, but do not yet launch a process; absolute URL/authentication assembly is
 part of the mpv Direct Play phase.
+
+## Phase 7 decisions
+
+The initial Player boundary accepts player-neutral media and blocks for the
+process lifetime; Phase 8 will evolve it to return a controllable IPC session.
+mpv receives the media URL, optional resume time, and title while retaining its
+normal terminal/UI behavior and user key bindings.
+
+Access tokens are never added to URLs or process arguments. HTTP headers are
+written to a mode-0600 mpv include file inside a mode-0700 temporary directory.
+Each header uses mpv's fixed-length quoting and the `http-header-fields-append`
+list operation, so commas, `#`, spaces, and quotes cannot change configuration
+structure. Header names and values are validated against injection, and the
+temporary directory is removed after start failure or process exit. Required
+media-source headers cannot override `X-Emby-Token`.
+
+Server-relative stream paths preserve a configured Jellyfin base path. Absolute
+negotiated URLs are accepted only when their scheme and host match the configured
+server, preventing authentication from being forwarded cross-origin. Process
+errors distinguish missing mpv, launch failure, context cancellation, and an
+abnormal playback exit.
 
 ## Primary references
 

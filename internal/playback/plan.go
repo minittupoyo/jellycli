@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"jellycli/internal/jellyfin"
+	"jellycli/internal/player"
 )
 
 type Mode string
@@ -26,6 +29,42 @@ type Plan struct {
 	Resource        string
 	RequiredHeaders map[string]string
 	RunTimeTicks    *int64
+}
+
+// Media resolves a plan without placing the access token in its URL. The token
+// is passed as an HTTP header and later stored in mpv's private include file.
+func (p Plan) Media(serverURL, accessToken, title string, startTime time.Duration) (player.Media, error) {
+	base, err := url.Parse(strings.TrimRight(serverURL, "/"))
+	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
+		return player.Media{}, errors.New("materialize playback plan: invalid server URL")
+	}
+	resource, err := url.Parse(p.Resource)
+	if err != nil {
+		return player.Media{}, fmt.Errorf("materialize playback plan: invalid resource: %w", err)
+	}
+	if resource.IsAbs() {
+		if resource.Scheme != base.Scheme || resource.Host != base.Host {
+			return player.Media{}, errors.New("materialize playback plan: cross-origin media URL refused")
+		}
+	} else {
+		resource.Path = strings.TrimRight(base.Path, "/") + "/" + strings.TrimLeft(resource.Path, "/")
+		resource.Scheme = base.Scheme
+		resource.Host = base.Host
+	}
+	headers := cloneHeaders(p.RequiredHeaders)
+	for name := range headers {
+		if strings.EqualFold(name, "X-Emby-Token") {
+			return player.Media{}, errors.New("materialize playback plan: media source attempted to override authentication")
+		}
+	}
+	if accessToken == "" {
+		return player.Media{}, errors.New("materialize playback plan: access token is required")
+	}
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers["X-Emby-Token"] = accessToken
+	return player.Media{URL: resource.String(), Headers: headers, StartTime: startTime, Title: title}, nil
 }
 
 var ErrNoCompatibleMedia = errors.New("no compatible media source")
