@@ -1,0 +1,106 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Test, race, and vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: go mod verify
+      - run: go test -count=1 ./...
+      - run: go test -count=1 -race ./...
+      - run: go vet ./...
+
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: quality
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary: jellycli
+            artifact: jellycli-linux-amd64
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            binary: jellycli
+            artifact: jellycli-linux-arm64
+          - runner: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary: jellycli
+            artifact: jellycli-darwin-amd64
+          - runner: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary: jellycli
+            artifact: jellycli-darwin-arm64
+          - runner: windows-latest
+            goos: windows
+            goarch: amd64
+            binary: jellycli.exe
+            artifact: jellycli-windows-amd64
+          - runner: windows-latest
+            goos: windows
+            goarch: arm64
+            binary: jellycli.exe
+            artifact: jellycli-windows-arm64
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist
+          go build -trimpath -o "dist/${{ matrix.binary }}" ./cmd/jellycli
+      - name: Package Unix artifact
+        if: matrix.goos != 'windows'
+        shell: bash
+        run: tar -C dist -czf "dist/${{ matrix.artifact }}.tar.gz" "${{ matrix.binary }}"
+      - name: Package Windows artifact
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path "dist/${{ matrix.binary }}" -DestinationPath "dist/${{ matrix.artifact }}.zip"
+      - name: Upload Unix artifact
+        if: matrix.goos != 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error
+      - name: Upload Windows artifact
+        if: matrix.goos == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.zip
+          if-no-files-found: error

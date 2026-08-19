@@ -16,6 +16,11 @@ go test ./...
 go build -o jellycli ./cmd/jellycli
 ```
 
+GitHub Actions runs tests, the race detector, and vet on every pull request and
+push to `main`, then builds on Linux, macOS, and Windows runners. It publishes
+amd64/arm64 artifacts for all three operating systems; tag pushes matching `v*`
+run the same verified build matrix.
+
 ## Login and commands
 
 The password is requested interactively without echoing it and is never stored:
