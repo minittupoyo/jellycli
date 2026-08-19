@@ -153,7 +153,8 @@ intentionally avoided.
 9. **Playback sync (complete):** start/progress/stopped state machine,
    cancellation/signals, periodic reporting, exactly-once stop, and fake
    clock/player/API tests.
-10. **Resume:** server ticks to player start position and boundary behavior.
+10. **Resume (complete):** server ticks to player start position, negotiation
+    tick consistency, and boundary behavior.
 11. **Search:** API and CLI search/play integration.
 12. **Bubble Tea TUI:** Home and hierarchy screens, input-aware key handling, and
     asynchronous commands through application services.
@@ -298,6 +299,21 @@ sends Stopped exactly once. Normal/abnormal process exit, caller cancellation,
 and IPC failure all use a separate bounded cleanup context so a canceled parent
 does not suppress the final server notification. The executable translates
 SIGINT and SIGTERM into cancellation of this same application context.
+
+## Phase 10 decisions
+
+Resume selection returns one decision containing both the original Jellyfin
+`StartTimeTicks` for PlaybackInfo and the exactly converted `time.Duration` for
+mpv. This prevents negotiation and player startup from drifting through separate
+rounding paths. Conversion checks `time.Duration` overflow before multiplying
+100 ns ticks.
+
+Items marked played always start from the beginning. Missing/zero positions,
+positions below five seconds, positions at or beyond runtime, and positions with
+less than five seconds remaining also start from the beginning. Exactly five
+seconds is resumable at either boundary. Unknown runtime does not discard an
+otherwise valid saved position, because the server remains authoritative about
+played state and the stream duration may become available only after opening.
 
 ## Primary references
 
