@@ -148,8 +148,8 @@ intentionally avoided.
    mode-neutral playback-plan selection tests.
 7. **mpv Direct Play (complete):** Player contract, process runner, URL/header
    handling, resume option, and missing-binary/startup errors.
-8. **mpv JSON IPC:** request correlation, event reader, property observation,
-   pause/resume/seek/position/duration/stop, fake-socket tests.
+8. **mpv JSON IPC (complete):** request correlation, event reader,
+   pause/resume/seek/position/duration/stop, and fake-socket tests.
 9. **Playback sync:** start/progress/stopped state machine, cancellation/signals,
    periodic reporting, exactly-once stop, fake clock/player/API tests.
 10. **Resume:** server ticks to player start position and boundary behavior.
@@ -247,10 +247,9 @@ part of the mpv Direct Play phase.
 
 ## Phase 7 decisions
 
-The initial Player boundary accepts player-neutral media and blocks for the
-process lifetime; Phase 8 will evolve it to return a controllable IPC session.
-mpv receives the media URL, optional resume time, and title while retaining its
-normal terminal/UI behavior and user key bindings.
+The Player boundary accepts player-neutral media. mpv receives the media URL,
+optional resume time, and title while retaining its normal terminal/UI behavior
+and user key bindings.
 
 Access tokens are never added to URLs or process arguments. HTTP headers are
 written to a mode-0600 mpv include file inside a mode-0700 temporary directory.
@@ -265,6 +264,21 @@ negotiated URLs are accepted only when their scheme and host match the configure
 server, preventing authentication from being forwarded cross-origin. Process
 errors distinguish missing mpv, launch failure, context cancellation, and an
 abnormal playback exit.
+
+## Phase 8 decisions
+
+`Player.Start` returns a live `Session`. Pause, resume, absolute seek, position,
+duration, and stop are structured JSON IPC commands, each with a monotonically
+increasing request ID. A single decoder goroutine owns the socket read side and
+correlates responses to concurrent callers while delivering asynchronous events
+separately.
+
+mpv creates a unique Unix socket in the existing private temporary directory.
+Connection attempts use a bounded five-second timeout and stop early if the mpv
+process exits. The session combines process exit status with `end-file` error
+events, closes IPC, cancels the child context, and removes the socket and secret
+configuration. IPC and process factories are injected so the full control path
+runs in tests with `net.Pipe`, without mpv or a Jellyfin server.
 
 ## Primary references
 
