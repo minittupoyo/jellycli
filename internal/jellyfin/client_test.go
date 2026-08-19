@@ -145,3 +145,21 @@ func TestExpiredTokenIsAuthenticationError(t *testing.T) {
 		t.Fatalf("error = %v, want ErrAuthentication", err)
 	}
 }
+
+type failingHTTPClient struct{ err error }
+
+func (f failingHTTPClient) Do(*http.Request) (*http.Response, error) { return nil, f.err }
+
+func TestNetworkFailureIsClassifiedAndWrapped(t *testing.T) {
+	cause := errors.New("connection reset")
+	client, err := NewClient("https://media.example.test", failingHTTPClient{err: cause}, DeviceInfo{
+		Client: "client", Device: "device", DeviceID: "id", Version: "dev",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.WithToken("token").CurrentUser(context.Background())
+	if !errors.Is(err, ErrNetwork) || !errors.Is(err, cause) {
+		t.Fatalf("error = %v", err)
+	}
+}

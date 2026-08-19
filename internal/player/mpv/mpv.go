@@ -69,7 +69,7 @@ func New(options Options) *Player {
 		options.Command = defaultCommand
 	}
 	if options.Dial == nil {
-		options.Dial = dialUnix
+		options.Dial = dialIPC
 	}
 	if options.Stdin == nil {
 		options.Stdin = os.Stdin
@@ -260,10 +260,6 @@ func defaultCommand(ctx context.Context, executable string, args []string, stdin
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	return execProcess{cmd}
 }
-func dialUnix(ctx context.Context, path string) (net.Conn, error) {
-	return (&net.Dialer{}).DialContext(ctx, "unix", path)
-}
-
 func validateMedia(media player.Media) error {
 	u, err := url.Parse(media.URL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {

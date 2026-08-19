@@ -160,8 +160,8 @@ intentionally avoided.
     handling, and asynchronous commands through application services.
 13. **Direct Stream/transcode (complete):** profile negotiation and
     server-provided URLs; lifecycle/session cleanup and integration tests.
-14. **Hardening:** network interruption, token expiry UX, debug file logging,
-    race tests, cross-platform seams, and end-to-end smoke documentation.
+14. **Hardening (complete):** network interruption, token expiry UX, debug file
+    logging, race tests, cross-platform seams, and end-to-end smoke documentation.
 
 ## Phase 1 decisions
 
@@ -352,6 +352,21 @@ or `X-Emby-Token` query parameter supplied in a negotiated URL is removed before
 mpv launch and replaced by the private HTTP authentication header, preventing a
 token from appearing in process arguments while retaining other HLS/session
 parameters.
+
+## Phase 14 decisions
+
+HTTP transport failures preserve their underlying cause while carrying a stable
+network category. CLI and TUI output translate network and expired-token errors
+into actionable messages; detailed errors go only to an opt-in structured file
+logger. The log uses mode 0600 and redacts the saved token plus authentication
+query parameters.
+
+Unix-socket dialing and termination-signal selection live behind build-tagged
+platform files. Non-Windows and Windows targets compile against the same player
+and orchestration interfaces; Windows deliberately returns a clear named-pipe
+not-implemented error until that adapter is supplied. The README documents an
+end-to-end server/mpv smoke test, interruption recovery, and current platform
+limits.
 
 ## Primary references
 

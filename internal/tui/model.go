@@ -24,6 +24,10 @@ type Service interface {
 	Play(context.Context, string) error
 }
 
+type DebugLogger interface {
+	Error(string, error)
+}
+
 type page struct {
 	title  string
 	rows   []row
@@ -57,6 +61,7 @@ type Model struct {
 	width     int
 	height    int
 	requestID uint64
+	debug     DebugLogger
 }
 
 type loadedMsg struct {
@@ -73,8 +78,12 @@ type homeMsg struct {
 
 type playbackFinishedMsg struct{ err error }
 
-func New(ctx context.Context, service Service) Model {
-	return Model{ctx: ctx, service: service, page: page{title: "Home"}, loading: true, requestID: 1}
+func New(ctx context.Context, service Service, debug ...DebugLogger) Model {
+	model := Model{ctx: ctx, service: service, page: page{title: "Home"}, loading: true, requestID: 1}
+	if len(debug) > 0 {
+		model.debug = debug[0]
+	}
+	return model
 }
 
 func (m Model) Init() tea.Cmd { return m.loadHome(m.requestID) }
@@ -89,7 +98,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.loading = false
 		if msg.err != nil {
-			m.status = msg.err.Error()
+			m.recordError("home", msg.err)
+			m.status = application.UserError("home", msg.err)
 			return m, nil
 		}
 		m.page = homePage(msg.content)
@@ -99,13 +109,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.loading = false
 		if msg.err != nil {
-			m.status = msg.err.Error()
+			m.recordError("browse", msg.err)
+			m.status = application.UserError("browse", msg.err)
 			return m, nil
 		}
 		m.page = msg.page
 	case playbackFinishedMsg:
 		if msg.err != nil {
-			m.status = "Playback failed: " + msg.err.Error()
+			m.recordError("play", msg.err)
+			m.status = "Playback failed: " + application.UserError("play", msg.err)
 		} else {
 			m.status = "Playback finished."
 		}
@@ -116,6 +128,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateNavigation(msg)
 	}
 	return m, nil
+}
+
+func (m Model) recordError(operation string, err error) {
+	if m.debug != nil {
+		m.debug.Error(operation, err)
+	}
 }
 
 func (m Model) updateNavigation(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -342,10 +360,10 @@ func (playCommand) SetStdin(io.Reader)  {}
 func (playCommand) SetStdout(io.Writer) {}
 func (playCommand) SetStderr(io.Writer) {}
 
-func Run(ctx context.Context, service Service) error {
+func Run(ctx context.Context, service Service, debug ...DebugLogger) error {
 	if service == nil {
 		return fmt.Errorf("run TUI: service is required")
 	}
-	_, err := tea.NewProgram(New(ctx, service), tea.WithContext(ctx)).Run()
+	_, err := tea.NewProgram(New(ctx, service, debug...), tea.WithContext(ctx)).Run()
 	return err
 }

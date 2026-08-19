@@ -15,7 +15,10 @@ import (
 
 const maxResponseSize = 4 << 20
 
-var ErrAuthentication = errors.New("Jellyfin authentication failed")
+var (
+	ErrAuthentication = errors.New("Jellyfin authentication failed")
+	ErrNetwork        = errors.New("Jellyfin network request failed")
+)
 
 // HTTPDoer is implemented by *http.Client and can be replaced in tests.
 type HTTPDoer interface {
@@ -195,7 +198,7 @@ func (c *Client) doJSONQuery(ctx context.Context, method, endpoint string, query
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("send request: %w", err)
+		return fmt.Errorf("%w: %w", ErrNetwork, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

@@ -13,6 +13,7 @@ const appDir = "jellycli"
 type Paths struct {
 	Settings string
 	State    string
+	Log      string
 }
 
 // ResolvePaths resolves XDG paths using getenv and homeDir. Empty XDG values
@@ -39,6 +40,7 @@ func ResolvePaths(getenv func(string) string, homeDir string) (Paths, error) {
 	return Paths{
 		Settings: filepath.Join(configHome, appDir, "config.json"),
 		State:    filepath.Join(stateHome, appDir, "state.json"),
+		Log:      filepath.Join(stateHome, appDir, "debug.log"),
 	}, nil
 }
 

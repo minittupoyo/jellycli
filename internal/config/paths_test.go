@@ -20,6 +20,9 @@ func TestResolvePaths(t *testing.T) {
 	if want := "/xdg/state/jellycli/state.json"; paths.State != want {
 		t.Fatalf("State = %q, want %q", paths.State, want)
 	}
+	if want := "/xdg/state/jellycli/debug.log"; paths.Log != want {
+		t.Fatalf("Log = %q, want %q", paths.Log, want)
+	}
 }
 
 func TestResolvePathsDefaults(t *testing.T) {
@@ -32,6 +35,9 @@ func TestResolvePathsDefaults(t *testing.T) {
 	}
 	if want := filepath.FromSlash("/home/test/.local/state/jellycli/state.json"); paths.State != want {
 		t.Fatalf("State = %q, want %q", paths.State, want)
+	}
+	if want := filepath.FromSlash("/home/test/.local/state/jellycli/debug.log"); paths.Log != want {
+		t.Fatalf("Log = %q, want %q", paths.Log, want)
 	}
 }
 

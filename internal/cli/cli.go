@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"jellycli/internal/application"
 	"jellycli/internal/jellyfin"
 )
 
@@ -38,6 +39,10 @@ type Authenticator interface {
 	Logout(context.Context) error
 }
 
+type DebugLogger interface {
+	Error(string, error)
+}
+
 type Dependencies struct {
 	LibraryLister LibraryLister
 	Searcher      Searcher
@@ -45,11 +50,12 @@ type Dependencies struct {
 	Authenticator Authenticator
 	Stdin         io.Reader
 	RunTUI        func(context.Context) error
+	Debug         DebugLogger
 }
 
 func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.Writer, deps Dependencies) int {
 	if err := ctx.Err(); err != nil {
-		fmt.Fprintf(stderr, "jellycli: %v\n", err)
+		printError(stderr, deps.Debug, "startup", err)
 		return 1
 	}
 
@@ -80,11 +86,11 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		}
 		password, err := readPassword(deps.Stdin)
 		if err != nil {
-			fmt.Fprintf(stderr, "jellycli: login: %v\n", err)
+			printError(stderr, deps.Debug, "login", err)
 			return 1
 		}
 		if err := deps.Authenticator.Login(ctx, args[1], args[2], password); err != nil {
-			fmt.Fprintf(stderr, "jellycli: login: %v\n", err)
+			printError(stderr, deps.Debug, "login", err)
 			return 1
 		}
 		fmt.Fprintln(stdout, "Logged in.")
@@ -99,7 +105,7 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 			return 1
 		}
 		if err := deps.Authenticator.Logout(ctx); err != nil {
-			fmt.Fprintf(stderr, "jellycli: logout: %v\n", err)
+			printError(stderr, deps.Debug, "logout", err)
 			return 1
 		}
 		fmt.Fprintln(stdout, "Logged out.")
@@ -114,7 +120,7 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 			return 1
 		}
 		if err := deps.RunTUI(ctx); err != nil {
-			fmt.Fprintf(stderr, "jellycli: tui: %v\n", err)
+			printError(stderr, deps.Debug, "tui", err)
 			return 1
 		}
 		return 0
@@ -125,7 +131,7 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		}
 		items, err := deps.LibraryLister.Libraries(ctx)
 		if err != nil {
-			fmt.Fprintf(stderr, "jellycli: list libraries: %v\n", err)
+			printError(stderr, deps.Debug, "libraries", err)
 			return 1
 		}
 		printLibraries(stdout, items)
@@ -141,7 +147,7 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		}
 		items, err := deps.Searcher.Search(ctx, args[1])
 		if err != nil {
-			fmt.Fprintf(stderr, "jellycli: search: %v\n", err)
+			printError(stderr, deps.Debug, "search", err)
 			return 1
 		}
 		printItems(stdout, items)
@@ -156,7 +162,7 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 			return 1
 		}
 		if err := deps.Player.Play(ctx, args[1]); err != nil {
-			fmt.Fprintf(stderr, "jellycli: play: %v\n", err)
+			printError(stderr, deps.Debug, "play", err)
 			return 1
 		}
 		return 0
@@ -165,6 +171,13 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		fmt.Fprintln(stderr, "Run 'jellycli help' for usage.")
 		return 2
 	}
+}
+
+func printError(w io.Writer, debug DebugLogger, operation string, err error) {
+	if debug != nil {
+		debug.Error(operation, err)
+	}
+	fmt.Fprintf(w, "jellycli: %s: %s\n", operation, application.UserError(operation, err))
 }
 
 func printUsage(w io.Writer) {
