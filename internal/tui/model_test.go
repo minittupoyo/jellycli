@@ -111,6 +111,17 @@ func TestSearchTreatsQAsTextAndReturnsResults(t *testing.T) {
 	}
 }
 
+func TestSeriesSearchResultOpensSeasons(t *testing.T) {
+	row := itemRow(jellyfin.Item{ID: "series", Name: "Series", Type: jellyfin.ItemKindSeries})
+	if row.action != actionOpen {
+		t.Fatalf("series action = %v, want open", row.action)
+	}
+	title, kinds := childQuery(row.item)
+	if title != "Series" || len(kinds) != 1 || kinds[0] != jellyfin.ItemKindSeason {
+		t.Fatalf("child query = %q %#v", title, kinds)
+	}
+}
+
 func TestPlayCommandDelegatesAndReturnsError(t *testing.T) {
 	want := errors.New("player failed")
 	service := &fakeService{playErr: want}

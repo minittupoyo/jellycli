@@ -64,7 +64,14 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 	}
 
 	if len(args) == 0 {
-		printUsage(stdout)
+		if deps.RunTUI == nil {
+			fmt.Fprintln(stderr, "jellycli: tui command is unavailable")
+			return 1
+		}
+		if err := deps.RunTUI(ctx); err != nil {
+			printError(stderr, deps.Debug, "tui", err)
+			return 1
+		}
 		return 0
 	}
 
@@ -194,7 +201,9 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, `jellycli - browse and play media from a Jellyfin server
 
 Usage:
-  jellycli <command>
+  jellycli [command]
+
+Running without a command starts the TUI.
 
 Commands:
   help       Show this help

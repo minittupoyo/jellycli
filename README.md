@@ -28,12 +28,16 @@ For automation, redirect a password file or pipe stdin; non-terminal input is
 read without displaying a prompt.
 
 ```text
+jellycli
 jellycli libraries
 jellycli search "title"
 jellycli play ITEM_ID
 jellycli tui
 jellycli logout
 ```
+
+Running `jellycli` without a command starts the TUI. Search results include
+movies, series, episodes, and other videos; selecting a series opens its seasons.
 
 The TUI keys are `↑`/`k`, `↓`/`j`, `Enter`, `Esc`, `/`, and `q`. While entering
 a search query, `q` is ordinary text and `Esc` cancels the query. mpv runs with

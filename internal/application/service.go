@@ -188,8 +188,11 @@ func (s *Service) Search(ctx context.Context, term string) ([]jellyfin.Item, err
 	}
 	page, err := client.Items(ctx, userID, jellyfin.ItemsQuery{
 		Page: jellyfin.PageOptions{Limit: 100}, SearchTerm: term, Recursive: true,
-		IncludeTypes: []jellyfin.ItemKind{jellyfin.ItemKindMovie, jellyfin.ItemKindEpisode, jellyfin.ItemKindVideo},
-		SortBy:       []string{"SortName"}, SortOrder: "Ascending",
+		IncludeTypes: []jellyfin.ItemKind{
+			jellyfin.ItemKindMovie, jellyfin.ItemKindSeries,
+			jellyfin.ItemKindEpisode, jellyfin.ItemKindVideo,
+		},
+		SortBy: []string{"SortName"}, SortOrder: "Ascending",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search: %w", err)

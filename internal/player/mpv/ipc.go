@@ -82,6 +82,12 @@ func (c *ipcClient) command(ctx context.Context, destination any, name string, a
 			return decodeReply(message, destination, name)
 		default:
 		}
+		// A successful quit commonly closes the process and socket before its
+		// reply is scheduled to this goroutine. Once the command was written,
+		// that terminal state already satisfies Stop.
+		if name == "quit" {
+			return nil
+		}
 		c.mu.Lock()
 		err := c.err
 		c.mu.Unlock()

@@ -110,7 +110,7 @@ func TestSearchAndPlayUseAuthenticatedApplicationFlow(t *testing.T) {
 			_, _ = w.Write([]byte(`{"Id":"user-id"}`))
 		case "/Items":
 			if term := r.URL.Query().Get("searchTerm"); term != "" {
-				if term != "pilot" || r.URL.Query().Get("includeItemTypes") != "Movie,Episode,Video" {
+				if term != "pilot" || r.URL.Query().Get("includeItemTypes") != "Movie,Series,Episode,Video" {
 					t.Errorf("search query = %v", r.URL.Query())
 				}
 			}

@@ -202,3 +202,14 @@ func TestRunTUI(t *testing.T) {
 		t.Fatalf("code/called = %d/%v, stderr = %q", code, called, stderr.String())
 	}
 }
+
+func TestRunWithoutCommandStartsTUI(t *testing.T) {
+	called := false
+	var stdout, stderr bytes.Buffer
+	code := RunWithDependencies(context.Background(), nil, &stdout, &stderr, Dependencies{
+		RunTUI: func(context.Context) error { called = true; return nil },
+	})
+	if code != 0 || !called || stdout.Len() != 0 {
+		t.Fatalf("code/called/stdout = %d/%v/%q, stderr = %q", code, called, stdout.String(), stderr.String())
+	}
+}

@@ -320,7 +320,8 @@ played state and the stream duration may become available only after opening.
 ## Phase 11 decisions
 
 Search reuses the typed `/Items` query with the server's `searchTerm`, recursive
-video filtering, user data, stable title sorting, and a bounded result count.
+movie, series, episode, and video filtering, user data, stable title sorting,
+and a bounded result count.
 Results expose IDs so `jellycli play <item-id>` can directly start any selected
 entry. The application service owns the full playback flow: saved-login
 validation, exact item lookup, resume selection, PlaybackInfo negotiation,
