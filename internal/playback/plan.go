@@ -51,6 +51,13 @@ func (p Plan) Media(serverURL, accessToken, title string, startTime time.Duratio
 		resource.Scheme = base.Scheme
 		resource.Host = base.Host
 	}
+	query := resource.Query()
+	for name := range query {
+		if strings.EqualFold(name, "api_key") || strings.EqualFold(name, "x-emby-token") {
+			query.Del(name)
+		}
+	}
+	resource.RawQuery = query.Encode()
 	headers := cloneHeaders(p.RequiredHeaders)
 	for name := range headers {
 		if strings.EqualFold(name, "X-Emby-Token") {

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -266,5 +267,52 @@ func TestHomeAndBrowseUseTypedCollections(t *testing.T) {
 		if !containsPath(paths, want) {
 			t.Errorf("paths missing %s: %#v", want, paths)
 		}
+	}
+}
+
+func TestPlayUsesNegotiatedTranscodeURLAndReportsMode(t *testing.T) {
+	var reportedMethods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/Users/Me":
+			_, _ = w.Write([]byte(`{"Id":"user"}`))
+		case "/Items":
+			_, _ = w.Write([]byte(`{"Items":[{"Id":"item","Name":"Movie","Type":"Movie"}]}`))
+		case "/Items/item/PlaybackInfo":
+			_, _ = w.Write([]byte(`{"PlaySessionId":"session","MediaSources":[{"Id":"source","SupportsTranscoding":true,"TranscodingUrl":"/Videos/item/master.m3u8?api_key=leaked&playSessionId=session"}]}`))
+		case "/Sessions/Playing":
+			var body struct {
+				PlayMethod string `json:"PlayMethod"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			reportedMethods = append(reportedMethods, body.PlayMethod)
+			w.WriteHeader(http.StatusNoContent)
+		case "/Sessions/Playing/Stopped":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	root := t.TempDir()
+	store := config.NewStore(config.Paths{Settings: filepath.Join(root, "config.json"), State: filepath.Join(root, "state.json")})
+	if err := store.SaveSettings(config.Settings{ServerURL: server.URL}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveState(config.State{DeviceID: "device", Auth: &config.Auth{AccessToken: "token", UserID: "user"}}); err != nil {
+		t.Fatal(err)
+	}
+	p := &fakePlayer{}
+	service, _ := NewService(store, http.DefaultClient, "device", "dev")
+	if err := service.WithPlayer(p).Play(context.Background(), "item"); err != nil {
+		t.Fatal(err)
+	}
+	if p.media.URL != server.URL+"/Videos/item/master.m3u8?playSessionId=session" || strings.Contains(p.media.URL, "leaked") {
+		t.Fatalf("media URL = %q", p.media.URL)
+	}
+	if len(reportedMethods) != 1 || reportedMethods[0] != "Transcode" {
+		t.Fatalf("reported methods = %#v", reportedMethods)
 	}
 }

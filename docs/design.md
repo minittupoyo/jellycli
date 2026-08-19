@@ -158,8 +158,8 @@ intentionally avoided.
 11. **Search (complete):** API and CLI search/play integration.
 12. **Bubble Tea TUI (complete):** Home and hierarchy screens, input-aware key
     handling, and asynchronous commands through application services.
-13. **Direct Stream/transcode:** profile negotiation and server-provided URLs;
-    lifecycle/session cleanup and integration tests.
+13. **Direct Stream/transcode (complete):** profile negotiation and
+    server-provided URLs; lifecycle/session cleanup and integration tests.
 14. **Hardening:** network interruption, token expiry UX, debug file logging,
     race tests, cross-platform seams, and end-to-end smoke documentation.
 
@@ -338,6 +338,20 @@ quitting; Escape cancels input or navigates back according to context. Playback
 uses Bubble Tea's external-command lifecycle to release and restore the terminal
 while the application service owns mpv and Jellyfin synchronization. This keeps
 mpv's standard UI and key bindings usable without coupling the TUI to mpv.
+
+## Phase 13 decisions
+
+Direct Stream and Transcode consume the server-negotiated `TranscodingUrl` and
+retain the same play-session and media-source identity used by progress and stop
+reports. Jellyfin 12's stable OpenAPI does not expose a separate active-encoding
+deletion operation, so `PlaybackStopped` is the authoritative cleanup signal on
+every terminal path.
+
+Negotiated URLs are constrained to the configured server origin. Any `api_key`
+or `X-Emby-Token` query parameter supplied in a negotiated URL is removed before
+mpv launch and replaced by the private HTTP authentication header, preventing a
+token from appearing in process arguments while retaining other HLS/session
+parameters.
 
 ## Primary references
 

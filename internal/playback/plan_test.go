@@ -3,6 +3,7 @@ package playback
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +65,7 @@ func TestBuildPlanRejectsIncompatibleSources(t *testing.T) {
 }
 
 func TestPlanMediaPreservesBasePathAndUsesTokenHeader(t *testing.T) {
-	plan := Plan{Resource: "/Videos/item/stream?static=true", RequiredHeaders: map[string]string{"Referer": "value"}}
+	plan := Plan{Resource: "/Videos/item/stream?static=true&api_key=server-leaked-token&X-Emby-Token=other", RequiredHeaders: map[string]string{"Referer": "value"}}
 	media, err := plan.Media("https://media.example.test/jellyfin/", "secret-token", "Title", 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +78,16 @@ func TestPlanMediaPreservesBasePathAndUsesTokenHeader(t *testing.T) {
 	}
 	if media.StartTime != 30*time.Second || media.Title != "Title" {
 		t.Fatalf("Media = %#v", media)
+	}
+}
+
+func TestPlanMediaStripsTokenFromAbsoluteNegotiatedURL(t *testing.T) {
+	media, err := (Plan{Resource: "https://media.example/video.m3u8?api_key=secret&playSessionId=session"}).Media("https://media.example", "token", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(media.URL, "secret") || media.URL != "https://media.example/video.m3u8?playSessionId=session" {
+		t.Fatalf("URL = %q", media.URL)
 	}
 }
 
