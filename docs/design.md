@@ -144,8 +144,8 @@ intentionally avoided.
    item hierarchy, resume, next-up, and latest; fixture/contract tests.
 5. **CLI libraries (complete):** application service, saved-login reconnection,
    token validation, and readable list output with exit-code mapping.
-6. **PlaybackInfo:** explicit device profile, source parsing, and mode-neutral
-   playback-plan selection tests.
+6. **PlaybackInfo (complete):** explicit mpv device profile, source parsing, and
+   mode-neutral playback-plan selection tests.
 7. **mpv Direct Play:** Player contract, process runner, URL/header handling,
    resume option, missing-binary/startup errors.
 8. **mpv JSON IPC:** request correlation, event reader, property observation,
@@ -228,6 +228,22 @@ ID and returns a nonzero status for configuration, authentication, network, or
 API errors. The process-wide HTTP client has a 30-second timeout. Login is still
 Phase 3 API capability rather than a public CLI command; its interactive command
 will be added before claiming end-user authentication UX complete.
+
+## Phase 6 decisions
+
+Playback negotiation uses `POST /Items/{itemId}/PlaybackInfo` with a
+`PlaybackInfoDto` body; the OpenAPI marks equivalent query parameters obsolete.
+The explicit mpv profile advertises broad ffmpeg-backed containers/codecs, an
+HLS/H.264 fallback, all three delivery modes, and stream-copy support. Jellyfin
+remains authoritative about whether each returned media source is playable.
+
+The playback planner examines every source rather than accepting the first one.
+It globally prefers Direct Play, then Direct Stream, then Transcode, retaining
+the server order within a mode. Direct Play gets a static `/Videos/{id}/stream`
+resource with media-source and play-session IDs. Direct Stream and Transcode use
+the URL negotiated by Jellyfin. Plans retain required upstream HTTP headers and
+runtime, but do not yet launch a process; absolute URL/authentication assembly is
+part of the mpv Direct Play phase.
 
 ## Primary references
 
