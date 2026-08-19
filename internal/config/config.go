@@ -43,6 +43,9 @@ func (s Settings) Validate() error {
 	if u.RawQuery != "" || u.Fragment != "" {
 		return errors.New("server URL must not contain a query or fragment")
 	}
+	if s.LogFile != "" && !filepath.IsAbs(s.LogFile) {
+		return errors.New("log file path must be absolute")
+	}
 	return nil
 }
 

@@ -231,7 +231,7 @@ func printItems(w io.Writer, items []jellyfin.Item) {
 		}
 		runtime := "-"
 		if item.RunTimeTicks != nil {
-			runtime = (time.Duration(*item.RunTimeTicks) * 100).Round(time.Minute).String()
+			runtime = (time.Duration(*item.RunTimeTicks/10_000_000) * time.Second).Round(time.Minute).String()
 		}
 		title := item.Name
 		if item.Type == jellyfin.ItemKindEpisode && item.ParentIndexNumber != nil && item.IndexNumber != nil {

@@ -113,7 +113,7 @@ User-facing errors will have stable categories (configuration, authentication,
 network, API, media unavailable, player missing/start/IPC/playback) while wrapping
 the original cause for debug logs.
 
-## Planned directory layout
+## Directory layout
 
 ```text
 cmd/jellycli/             executable wiring only
@@ -246,8 +246,8 @@ It globally prefers Direct Play, then Direct Stream, then Transcode, retaining
 the server order within a mode. Direct Play gets a static `/Videos/{id}/stream`
 resource with media-source and play-session IDs. Direct Stream and Transcode use
 the URL negotiated by Jellyfin. Plans retain required upstream HTTP headers and
-runtime, but do not yet launch a process; absolute URL/authentication assembly is
-part of the mpv Direct Play phase.
+runtime. At that phase, process launch and absolute URL/authentication assembly
+were intentionally left to the following mpv Direct Play phase.
 
 ## Phase 7 decisions
 

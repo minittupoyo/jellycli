@@ -65,6 +65,7 @@ func (s *Service) Login(ctx context.Context, serverURL, username, password strin
 		return fmt.Errorf("login: %w", err)
 	}
 	if err := s.store.SaveAuth(config.Auth{AccessToken: result.AccessToken, UserID: result.User.ID}); err != nil {
+		_ = s.store.ClearAuth()
 		return fmt.Errorf("login: %w", err)
 	}
 	return nil

@@ -33,6 +33,9 @@ func TestSettingsValidationAndNormalization(t *testing.T) {
 			t.Errorf("Validate(%q) error = nil, want error", invalid)
 		}
 	}
+	if err := (Settings{ServerURL: "https://media.example.test", LogFile: "relative.log"}).Validate(); err == nil {
+		t.Fatal("relative log file validation error = nil")
+	}
 }
 
 func TestSaveAndLoadSettings(t *testing.T) {
