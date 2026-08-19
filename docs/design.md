@@ -150,8 +150,9 @@ intentionally avoided.
    handling, resume option, and missing-binary/startup errors.
 8. **mpv JSON IPC (complete):** request correlation, event reader,
    pause/resume/seek/position/duration/stop, and fake-socket tests.
-9. **Playback sync:** start/progress/stopped state machine, cancellation/signals,
-   periodic reporting, exactly-once stop, fake clock/player/API tests.
+9. **Playback sync (complete):** start/progress/stopped state machine,
+   cancellation/signals, periodic reporting, exactly-once stop, and fake
+   clock/player/API tests.
 10. **Resume:** server ticks to player start position and boundary behavior.
 11. **Search:** API and CLI search/play integration.
 12. **Bubble Tea TUI:** Home and hierarchy screens, input-aware key handling, and
@@ -279,6 +280,24 @@ process exits. The session combines process exit status with `end-file` error
 events, closes IPC, cancels the child context, and removes the socket and secret
 configuration. IPC and process factories are injected so the full control path
 runs in tests with `net.Pipe`, without mpv or a Jellyfin server.
+
+## Phase 9 decisions
+
+The Jellyfin client implements the stable OpenAPI payloads for
+`/Sessions/Playing`, `/Sessions/Playing/Progress`, and
+`/Sessions/Playing/Stopped`. Player durations are converted centrally to
+Jellyfin's 100 ns ticks. Every report carries item, media-source, play-session,
+position, and play method; start/progress also include seek and pause state, and
+stop records abnormal failure.
+
+The synchronizer sends Start before entering its event loop, samples mpv
+position and pause state every ten seconds, and preserves the last successful
+sample. A transient Progress failure does not terminate playback and is cleared
+after a later successful report. Once Start succeeds, every terminal branch
+sends Stopped exactly once. Normal/abnormal process exit, caller cancellation,
+and IPC failure all use a separate bounded cleanup context so a canceled parent
+does not suppress the final server notification. The executable translates
+SIGINT and SIGTERM into cancellation of this same application context.
 
 ## Primary references
 

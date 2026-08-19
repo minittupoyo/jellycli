@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"jellycli/internal/application"
@@ -13,7 +15,9 @@ import (
 )
 
 func main() {
-	os.Exit(run(context.Background(), os.Args[1:]))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	os.Exit(run(ctx, os.Args[1:]))
 }
 
 func run(ctx context.Context, args []string) int {

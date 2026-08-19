@@ -122,6 +122,10 @@ func TestSessionControlsAndProperties(t *testing.T) {
 	if err != nil || duration != 120*time.Second {
 		t.Fatalf("Duration() = %v, %v", duration, err)
 	}
+	paused, err := s.Paused(ctx)
+	if err != nil || !paused {
+		t.Fatalf("Paused() = %v, %v", paused, err)
+	}
 	if err := s.Stop(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +145,9 @@ func serveIPC(conn net.Conn, process *fakeProcess) {
 		name, _ := request.Command[0].(string)
 		response := map[string]any{"request_id": request.RequestID, "error": "success"}
 		if name == "get_property" {
-			if request.Command[1] == "time-pos" {
+			if request.Command[1] == "pause" {
+				response["data"] = true
+			} else if request.Command[1] == "time-pos" {
 				response["data"] = 12.5
 			} else {
 				response["data"] = 120.0

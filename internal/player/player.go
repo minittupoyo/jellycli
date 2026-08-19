@@ -30,6 +30,7 @@ type Session interface {
 	Seek(context.Context, time.Duration) error
 	Position(context.Context) (time.Duration, error)
 	Duration(context.Context) (time.Duration, error)
+	Paused(context.Context) (bool, error)
 	Stop(context.Context) error
 	Events() <-chan Event
 	Wait() error

@@ -70,24 +70,35 @@ func (c *ipcClient) command(ctx context.Context, destination any, name string, a
 	}
 	select {
 	case message := <-reply:
-		if message.Error != "success" {
-			return fmt.Errorf("%w: command %s: %s", ErrIPC, name, message.Error)
-		}
-		if destination != nil && len(message.Data) > 0 {
-			if err := json.Unmarshal(message.Data, destination); err != nil {
-				return fmt.Errorf("%w: decode command %s: %v", ErrIPC, name, err)
-			}
-		}
-		return nil
+		return decodeReply(message, destination, name)
 	case <-ctx.Done():
 		c.removePending(id)
 		return ctx.Err()
 	case <-c.done:
+		// mpv can send the successful quit reply immediately before closing the
+		// socket. Prefer that already-buffered reply over the close notification.
+		select {
+		case message := <-reply:
+			return decodeReply(message, destination, name)
+		default:
+		}
 		c.mu.Lock()
 		err := c.err
 		c.mu.Unlock()
 		return err
 	}
+}
+
+func decodeReply(message ipcMessage, destination any, name string) error {
+	if message.Error != "success" {
+		return fmt.Errorf("%w: command %s: %s", ErrIPC, name, message.Error)
+	}
+	if destination != nil && len(message.Data) > 0 {
+		if err := json.Unmarshal(message.Data, destination); err != nil {
+			return fmt.Errorf("%w: decode command %s: %v", ErrIPC, name, err)
+		}
+	}
+	return nil
 }
 func (c *ipcClient) removePending(id uint64) {
 	c.mu.Lock()

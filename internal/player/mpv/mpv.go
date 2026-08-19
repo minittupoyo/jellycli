@@ -226,6 +226,13 @@ func (s *session) Position(ctx context.Context) (time.Duration, error) {
 func (s *session) Duration(ctx context.Context) (time.Duration, error) {
 	return s.propertyDuration(ctx, "duration")
 }
+func (s *session) Paused(ctx context.Context) (bool, error) {
+	var paused bool
+	if err := s.ipc.command(ctx, &paused, "get_property", "pause"); err != nil {
+		return false, err
+	}
+	return paused, nil
+}
 func (s *session) propertyDuration(ctx context.Context, property string) (time.Duration, error) {
 	var seconds float64
 	if err := s.ipc.command(ctx, &seconds, "get_property", property); err != nil {
