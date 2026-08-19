@@ -167,6 +167,10 @@ func (e *APIError) Is(target error) bool {
 }
 
 func (c *Client) doJSON(ctx context.Context, method, endpoint string, requestBody, responseBody any) error {
+	return c.doJSONQuery(ctx, method, endpoint, nil, requestBody, responseBody)
+}
+
+func (c *Client) doJSONQuery(ctx context.Context, method, endpoint string, query url.Values, requestBody, responseBody any) error {
 	var body io.Reader
 	if requestBody != nil {
 		encoded, err := json.Marshal(requestBody)
@@ -178,6 +182,7 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, requestBod
 
 	requestURL := *c.baseURL
 	requestURL.Path = strings.TrimRight(c.baseURL.Path, "/") + endpoint
+	requestURL.RawQuery = query.Encode()
 	req, err := http.NewRequestWithContext(ctx, method, requestURL.String(), body)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)

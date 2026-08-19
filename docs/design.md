@@ -27,10 +27,10 @@ contract rather than inferred from examples.
 | Password login | `POST /Users/AuthenticateByName` with `Username` and `Pw` |
 | Current user | `GET /Users/Me` |
 | Logout/token revoke | `POST /Sessions/Logout` |
-| Libraries/views | `GET /Users/{userId}/Views` |
-| Browse hierarchy | `GET /Users/{userId}/Items` (parent, recursive, types, sorting, and user-data fields) |
-| Recently added | `GET /Users/{userId}/Items/Latest` |
-| Continue watching | `GET /Users/{userId}/Items/Resume` |
+| Libraries/views | `GET /UserViews?userId=...` |
+| Browse hierarchy | `GET /Items?userId=...` (parent, recursive, types, sorting, and user-data fields) |
+| Recently added | `GET /Items/Latest?userId=...` |
+| Continue watching | `GET /UserItems/Resume?userId=...` |
 | Next up | `GET /Shows/NextUp` |
 | Search | `GET /Items` using `searchTerm`, recursive/type filters, and user ID |
 | Playback selection | `POST /Items/{itemId}/PlaybackInfo` with a device profile and playback capabilities |
@@ -140,8 +140,8 @@ intentionally avoided.
    persistence, device ID generation, settings/auth split, and validation tests.
 3. **Authentication (complete):** HTTP foundation, MediaBrowser header, login,
    token/user capture, saved-token validation, logout, and `httptest` coverage.
-4. **Jellyfin browsing API:** typed pagination and DTOs for views, item hierarchy,
-   resume, next-up, and latest; fixture/contract tests.
+4. **Jellyfin browsing API (complete):** typed pagination and DTOs for views,
+   item hierarchy, resume, next-up, and latest; fixture/contract tests.
 5. **CLI libraries:** commands and readable list output with exit-code mapping.
 6. **PlaybackInfo:** explicit device profile, source parsing, and mode-neutral
    playback-plan selection tests.
@@ -198,6 +198,21 @@ quotes or control characters in device metadata from altering its structure.
 Saved-token validation uses `GET /Users/Me`; server logout uses
 `POST /Sessions/Logout`. Persistence remains in the config package so the HTTP
 client does not gain filesystem responsibilities.
+
+## Phase 4 decisions
+
+The browsing API follows the Jellyfin 12.0 stable OpenAPI published in July 2026.
+That contract uses top-level `/UserViews`, `/Items`, `/UserItems/Resume`, and
+`/Items/Latest` routes with a `userId` query parameter; older user-ID-in-path
+routes are therefore not baked into the client. Endpoint contract tests assert
+the exact paths and query serialization.
+
+Only the BaseItemDto fields needed by the CLI/TUI are modeled. Nullable runtime,
+episode, season, and percentage fields use pointers so a real zero remains
+different from a missing value. Unknown item kinds and future response fields
+remain forward-compatible. The general Items query supports the hierarchy and
+sorting needed for movies, series, seasons, and episodes, while home-screen
+queries have smaller endpoint-specific option types.
 
 ## Primary references
 
