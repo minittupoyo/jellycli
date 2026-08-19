@@ -73,6 +73,8 @@ func (p PageOptions) add(values url.Values) error {
 type ItemsQuery struct {
 	Page         PageOptions
 	ParentID     string
+	SearchTerm   string
+	ItemIDs      []string
 	IncludeTypes []ItemKind
 	Recursive    bool
 	SortBy       []string
@@ -121,6 +123,12 @@ func (c *Client) Items(ctx context.Context, userID string, query ItemsQuery) (It
 		return ItemPage{}, fmt.Errorf("get items: %w", err)
 	}
 	setCommonItemQuery(values, query.ParentID, query.IncludeTypes)
+	if query.SearchTerm != "" {
+		values.Set("searchTerm", query.SearchTerm)
+	}
+	if len(query.ItemIDs) > 0 {
+		values.Set("ids", strings.Join(query.ItemIDs, ","))
+	}
 	values.Set("recursive", strconv.FormatBool(query.Recursive))
 	values.Set("enableUserData", "true")
 	if len(query.SortBy) > 0 {

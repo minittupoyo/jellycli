@@ -155,7 +155,7 @@ intentionally avoided.
    clock/player/API tests.
 10. **Resume (complete):** server ticks to player start position, negotiation
     tick consistency, and boundary behavior.
-11. **Search:** API and CLI search/play integration.
+11. **Search (complete):** API and CLI search/play integration.
 12. **Bubble Tea TUI:** Home and hierarchy screens, input-aware key handling, and
     asynchronous commands through application services.
 13. **Direct Stream/transcode:** profile negotiation and server-provided URLs;
@@ -314,6 +314,15 @@ less than five seconds remaining also start from the beginning. Exactly five
 seconds is resumable at either boundary. Unknown runtime does not discard an
 otherwise valid saved position, because the server remains authoritative about
 played state and the stream duration may become available only after opening.
+
+## Phase 11 decisions
+
+Search reuses the typed `/Items` query with the server's `searchTerm`, recursive
+video filtering, user data, stable title sorting, and a bounded result count.
+Results expose IDs so `jellycli play <item-id>` can directly start any selected
+entry. The application service owns the full playback flow: saved-login
+validation, exact item lookup, resume selection, PlaybackInfo negotiation,
+mode-neutral planning, player startup, and Jellyfin state synchronization.
 
 ## Primary references
 

@@ -12,6 +12,7 @@ import (
 	"jellycli/internal/application"
 	"jellycli/internal/cli"
 	"jellycli/internal/config"
+	"jellycli/internal/player/mpv"
 )
 
 func main() {
@@ -40,5 +41,8 @@ func run(ctx context.Context, args []string) int {
 		fmt.Fprintf(os.Stderr, "jellycli: %v\n", err)
 		return 1
 	}
-	return cli.RunWithDependencies(ctx, args, os.Stdout, os.Stderr, cli.Dependencies{LibraryLister: service})
+	service.WithPlayer(mpv.New(mpv.Options{}))
+	return cli.RunWithDependencies(ctx, args, os.Stdout, os.Stderr, cli.Dependencies{
+		LibraryLister: service, Searcher: service, Player: service,
+	})
 }

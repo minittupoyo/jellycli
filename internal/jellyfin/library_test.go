@@ -49,6 +49,20 @@ func TestLibraryEndpointsAndDTOs(t *testing.T) {
 			},
 		},
 		{
+			name: "search and IDs", path: "/Items",
+			wantQuery: url.Values{
+				"userId": {"user-id"}, "searchTerm": {"pilot"}, "ids": {"one,two"},
+				"recursive": {"true"}, "enableUserData": {"true"},
+			},
+			response: `{"Items":[],"TotalRecordCount":0,"StartIndex":0}`,
+			call: func(c *Client) error {
+				_, err := c.Items(context.Background(), "user-id", ItemsQuery{
+					SearchTerm: "pilot", ItemIDs: []string{"one", "two"}, Recursive: true,
+				})
+				return err
+			},
+		},
+		{
 			name: "resume", path: "/UserItems/Resume",
 			wantQuery: url.Values{"userId": {"user-id"}, "limit": {"12"}, "includeItemTypes": {"Movie,Episode"}, "mediaTypes": {"Video"}, "enableUserData": {"true"}},
 			response:  `{"Items":[],"TotalRecordCount":0,"StartIndex":0}`,
