@@ -142,7 +142,8 @@ intentionally avoided.
    token/user capture, saved-token validation, logout, and `httptest` coverage.
 4. **Jellyfin browsing API (complete):** typed pagination and DTOs for views,
    item hierarchy, resume, next-up, and latest; fixture/contract tests.
-5. **CLI libraries:** commands and readable list output with exit-code mapping.
+5. **CLI libraries (complete):** application service, saved-login reconnection,
+   token validation, and readable list output with exit-code mapping.
 6. **PlaybackInfo:** explicit device profile, source parsing, and mode-neutral
    playback-plan selection tests.
 7. **mpv Direct Play:** Player contract, process runner, URL/header handling,
@@ -213,6 +214,20 @@ different from a missing value. Unknown item kinds and future response fields
 remain forward-compatible. The general Items query supports the hierarchy and
 sorting needed for movies, series, seasons, and episodes, while home-screen
 queries have smaller endpoint-specific option types.
+
+## Phase 5 decisions
+
+The CLI depends on an application-level `LibraryLister` rather than constructing
+HTTP calls. The application service reads persisted XDG settings, builds an
+authenticated client, validates the token with `/Users/Me`, verifies the returned
+user matches the saved user ID, and then fetches `/UserViews`. This same service
+can later be injected into Bubble Tea commands.
+
+`jellycli libraries` prints stable tabular columns for name, collection type, and
+ID and returns a nonzero status for configuration, authentication, network, or
+API errors. The process-wide HTTP client has a 30-second timeout. Login is still
+Phase 3 API capability rather than a public CLI command; its interactive command
+will be added before claiming end-user authentication UX complete.
 
 ## Primary references
 

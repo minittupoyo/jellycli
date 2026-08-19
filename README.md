@@ -16,5 +16,12 @@ go build ./cmd/jellycli
 ./jellycli help
 ```
 
+After a server URL and login state have been saved by the forthcoming login
+command, the current application path can list libraries with:
+
+```sh
+./jellycli libraries
+```
+
 See [docs/design.md](docs/design.md) for the researched API surface,
 architecture, directory plan, and implementation phases.
