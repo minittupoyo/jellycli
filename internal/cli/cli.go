@@ -17,7 +17,7 @@ import (
 	"jellycli/internal/jellyfin"
 )
 
-const version = "dev"
+var version = "dev"
 
 // Run executes jellycli and returns a process exit code. Writers are injected so
 // commands remain testable and the future TUI does not have to share stdout logs.

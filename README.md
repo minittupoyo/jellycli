@@ -21,6 +21,18 @@ push to `main`, then builds on Linux, macOS, and Windows runners. It publishes
 amd64/arm64 artifacts for all three operating systems; tag pushes matching `v*`
 run the same verified build matrix.
 
+To publish a release, create and push a semantic-version tag:
+
+```sh
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+After every quality and build job succeeds, Actions creates the GitHub Release
+with generated notes, all six archives, and `checksums.txt`. Tags containing a
+hyphen, such as `v0.2.0-rc.1`, are published as prereleases. Release binaries
+report the tag through `jellycli version`.
+
 ## Login and commands
 
 The password is requested interactively without echoing it and is never stored:

@@ -79,9 +79,10 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
         run: |
           mkdir -p dist
-          go build -trimpath -o "dist/${{ matrix.binary }}" ./cmd/jellycli
+          go build -trimpath -ldflags "-s -w -X jellycli/internal/cli.version=${VERSION}" -o "dist/${{ matrix.binary }}" ./cmd/jellycli
       - name: Package Unix artifact
         if: matrix.goos != 'windows'
         shell: bash
@@ -104,3 +105,30 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/${{ matrix.artifact }}.zip
           if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: jellycli-*
+          path: dist
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum jellycli-* > checksums.txt
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          options=(--verify-tag --generate-notes --title "$TAG")
+          if [[ "$TAG" == *-* ]]; then
+            options+=(--prerelease)
+          fi
+          gh release create "$TAG" "${options[@]}" dist/*
