@@ -18,15 +18,14 @@ go build -o jellycli ./cmd/jellycli
 
 ## Login and commands
 
-The password is read from stdin and is never stored. This example asks the shell
-without echoing it and keeps it out of process arguments:
+The password is requested interactively without echoing it and is never stored:
 
 ```sh
-read -rsp 'Jellyfin password: ' JELLYCLI_LOGIN_PASSWORD
-printf '\n'
-printf '%s\n' "$JELLYCLI_LOGIN_PASSWORD" | ./jellycli login https://jellyfin.example alice
-unset JELLYCLI_LOGIN_PASSWORD
+./jellycli login https://jellyfin.example alice
 ```
+
+For automation, redirect a password file or pipe stdin; non-terminal input is
+read without displaying a prompt.
 
 ```text
 jellycli libraries

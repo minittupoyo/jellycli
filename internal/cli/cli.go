@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/charmbracelet/x/term"
 
 	"jellycli/internal/application"
 	"jellycli/internal/jellyfin"
@@ -44,13 +47,14 @@ type DebugLogger interface {
 }
 
 type Dependencies struct {
-	LibraryLister LibraryLister
-	Searcher      Searcher
-	Player        Player
-	Authenticator Authenticator
-	Stdin         io.Reader
-	RunTUI        func(context.Context) error
-	Debug         DebugLogger
+	LibraryLister  LibraryLister
+	Searcher       Searcher
+	Player         Player
+	Authenticator  Authenticator
+	Stdin          io.Reader
+	RunTUI         func(context.Context) error
+	Debug          DebugLogger
+	PasswordReader func() (string, error)
 }
 
 func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.Writer, deps Dependencies) int {
@@ -80,11 +84,17 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 			fmt.Fprintln(stderr, "jellycli: login command is unavailable")
 			return 1
 		}
-		if deps.Stdin == nil {
+		if deps.Stdin == nil && deps.PasswordReader == nil {
 			fmt.Fprintln(stderr, "jellycli: login requires a password on stdin")
 			return 2
 		}
-		password, err := readPassword(deps.Stdin)
+		var password string
+		var err error
+		if deps.PasswordReader != nil {
+			password, err = deps.PasswordReader()
+		} else {
+			password, err = readPassword(deps.Stdin)
+		}
 		if err != nil {
 			printError(stderr, deps.Debug, "login", err)
 			return 1
@@ -189,7 +199,7 @@ Usage:
 Commands:
   help       Show this help
   version    Show the version
-  login      Log in; reads password from stdin
+  login      Log in with an interactive password prompt
   logout     Revoke and remove the saved token
   libraries  List Jellyfin libraries
   search     Search videos by title
@@ -206,11 +216,37 @@ func readPassword(r io.Reader) (string, error) {
 	if len(data) > maxPasswordBytes {
 		return "", errors.New("password exceeds 4096 bytes")
 	}
-	password := strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r")
+	return validatePassword(strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r"))
+}
+
+func validatePassword(password string) (string, error) {
+	if len(password) > 4096 {
+		return "", errors.New("password exceeds 4096 bytes")
+	}
 	if password == "" {
 		return "", errors.New("password is empty")
 	}
 	return password, nil
+}
+
+// TerminalPasswordReader prompts without echo when stdin is a terminal and
+// preserves pipe/file input for automation.
+func TerminalPasswordReader(stdin *os.File, prompt io.Writer) func() (string, error) {
+	return func() (string, error) {
+		if stdin == nil {
+			return "", errors.New("password input is unavailable")
+		}
+		if !term.IsTerminal(stdin.Fd()) {
+			return readPassword(stdin)
+		}
+		fmt.Fprint(prompt, "Jellyfin password: ")
+		data, err := term.ReadPassword(stdin.Fd())
+		fmt.Fprintln(prompt)
+		if err != nil {
+			return "", fmt.Errorf("read password: %w", err)
+		}
+		return validatePassword(string(data))
+	}
 }
 
 func printItems(w io.Writer, items []jellyfin.Item) {

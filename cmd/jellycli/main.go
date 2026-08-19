@@ -64,7 +64,8 @@ func run(ctx context.Context, args []string) int {
 	return cli.RunWithDependencies(ctx, args, os.Stdout, os.Stderr, cli.Dependencies{
 		LibraryLister: service, Searcher: service, Player: service,
 		Authenticator: service, Stdin: os.Stdin,
-		RunTUI: func(ctx context.Context) error { return tui.Run(ctx, service, logger) },
-		Debug:  logger,
+		PasswordReader: cli.TerminalPasswordReader(os.Stdin, os.Stderr),
+		RunTUI:         func(ctx context.Context) error { return tui.Run(ctx, service, logger) },
+		Debug:          logger,
 	})
 }

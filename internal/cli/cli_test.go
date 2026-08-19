@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -140,6 +142,40 @@ func TestRunLoginAndLogout(t *testing.T) {
 	}
 	if code := RunWithDependencies(context.Background(), []string{"logout"}, &stdout, &stderr, deps); code != 0 || !service.logout {
 		t.Fatalf("logout code/state = %d/%v, stderr = %q", code, service.logout, stderr.String())
+	}
+}
+
+func TestRunLoginUsesInteractivePasswordReader(t *testing.T) {
+	service := &fakeFrontendService{}
+	called := false
+	var stdout, stderr bytes.Buffer
+	code := RunWithDependencies(context.Background(), []string{"login", "https://media.example", "alice"}, &stdout, &stderr, Dependencies{
+		Authenticator: service,
+		Stdin:         strings.NewReader("wrong"),
+		PasswordReader: func() (string, error) {
+			called = true
+			return "interactive-secret", nil
+		},
+	})
+	if code != 0 || !called || len(service.login) != 3 || service.login[2] != "interactive-secret" {
+		t.Fatalf("code/called/login = %d/%v/%#v, stderr = %q", code, called, service.login, stderr.String())
+	}
+}
+
+func TestTerminalPasswordReaderUsesRedirectedInputWithoutPrompt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "password")
+	if err := os.WriteFile(path, []byte("redirected-secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	var prompt bytes.Buffer
+	password, err := TerminalPasswordReader(file, &prompt)()
+	if err != nil || password != "redirected-secret" || prompt.Len() != 0 {
+		t.Fatalf("password/prompt/error = %q/%q/%v", password, prompt.String(), err)
 	}
 }
 
