@@ -136,8 +136,8 @@ intentionally avoided.
 1. **Project initialization (complete):** module, executable, injectable CLI
    runner, help/version behavior, unit tests, and this design. Gate: format,
    `go test ./...`, `go vet ./...`, and build.
-2. **Configuration:** XDG resolution, atomic permission-safe persistence, device
-   ID generation, settings/auth split, redaction tests.
+2. **Configuration (complete):** XDG resolution, atomic permission-safe
+   persistence, device ID generation, settings/auth split, and validation tests.
 3. **Authentication:** HTTP foundation, MediaBrowser header, login, token/user
    capture, saved-token validation, logout; `httptest` coverage.
 4. **Jellyfin browsing API:** typed pagination and DTOs for views, item hierarchy,
@@ -168,6 +168,20 @@ standard-library code; a framework will only be considered if command complexity
 demonstrates a concrete need. The module path is local (`jellycli`) until a
 canonical repository URL is chosen; changing it before a public release is
 mechanical and avoids guessing ownership now.
+
+## Phase 2 decisions
+
+Settings and private state are separate JSON files. Both use mode 0600 and their
+application directories use mode 0700; using the stricter permissions for the
+non-secret settings file keeps the persistence path uniform. Writes use a
+same-directory temporary file, file and directory sync, then atomic rename.
+
+The device identity is an RFC 9562 version 4 UUID generated with `crypto/rand`.
+It survives logout, while logout removes only the access token and user ID.
+Persistent types deliberately contain no password field. Relative XDG base paths
+are rejected because the XDG specification requires absolute paths. Server URLs
+accept only absolute HTTP(S) URLs without embedded credentials, queries, or
+fragments; a Jellyfin base path remains supported.
 
 ## Primary references
 
