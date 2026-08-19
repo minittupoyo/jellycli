@@ -13,6 +13,7 @@ import (
 	"jellycli/internal/cli"
 	"jellycli/internal/config"
 	"jellycli/internal/player/mpv"
+	"jellycli/internal/tui"
 )
 
 func main() {
@@ -45,5 +46,6 @@ func run(ctx context.Context, args []string) int {
 	return cli.RunWithDependencies(ctx, args, os.Stdout, os.Stderr, cli.Dependencies{
 		LibraryLister: service, Searcher: service, Player: service,
 		Authenticator: service, Stdin: os.Stdin,
+		RunTUI: func(ctx context.Context) error { return tui.Run(ctx, service) },
 	})
 }

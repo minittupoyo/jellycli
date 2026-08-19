@@ -155,3 +155,14 @@ func TestRunLoginRejectsMissingOrOversizedPassword(t *testing.T) {
 		}
 	}
 }
+
+func TestRunTUI(t *testing.T) {
+	called := false
+	var stdout, stderr bytes.Buffer
+	code := RunWithDependencies(context.Background(), []string{"tui"}, &stdout, &stderr, Dependencies{
+		RunTUI: func(context.Context) error { called = true; return nil },
+	})
+	if code != 0 || !called {
+		t.Fatalf("code/called = %d/%v, stderr = %q", code, called, stderr.String())
+	}
+}

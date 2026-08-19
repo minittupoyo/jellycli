@@ -44,6 +44,7 @@ type Dependencies struct {
 	Player        Player
 	Authenticator Authenticator
 	Stdin         io.Reader
+	RunTUI        func(context.Context) error
 }
 
 func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.Writer, deps Dependencies) int {
@@ -103,6 +104,20 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		}
 		fmt.Fprintln(stdout, "Logged out.")
 		return 0
+	case "tui":
+		if len(args) != 1 {
+			fmt.Fprintln(stderr, "jellycli: usage: jellycli tui")
+			return 2
+		}
+		if deps.RunTUI == nil {
+			fmt.Fprintln(stderr, "jellycli: tui command is unavailable")
+			return 1
+		}
+		if err := deps.RunTUI(ctx); err != nil {
+			fmt.Fprintf(stderr, "jellycli: tui: %v\n", err)
+			return 1
+		}
+		return 0
 	case "libraries":
 		if deps.LibraryLister == nil {
 			fmt.Fprintln(stderr, "jellycli: libraries command is unavailable")
@@ -161,14 +176,12 @@ Usage:
 Commands:
   help       Show this help
   version    Show the version
-	login       Log in; reads password from stdin
-	logout      Revoke and remove the saved token
+  login      Log in; reads password from stdin
+  logout     Revoke and remove the saved token
   libraries  List Jellyfin libraries
-	search      Search videos by title
-	play        Play an item by ID
-
-Planned commands:
-  tui`)
+  search     Search videos by title
+  play       Play an item by ID
+  tui        Start the terminal interface`)
 }
 
 func readPassword(r io.Reader) (string, error) {

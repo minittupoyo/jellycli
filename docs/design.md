@@ -156,8 +156,8 @@ intentionally avoided.
 10. **Resume (complete):** server ticks to player start position, negotiation
     tick consistency, and boundary behavior.
 11. **Search (complete):** API and CLI search/play integration.
-12. **Bubble Tea TUI:** Home and hierarchy screens, input-aware key handling, and
-    asynchronous commands through application services.
+12. **Bubble Tea TUI (complete):** Home and hierarchy screens, input-aware key
+    handling, and asynchronous commands through application services.
 13. **Direct Stream/transcode:** profile negotiation and server-provided URLs;
     lifecycle/session cleanup and integration tests.
 14. **Hardening:** network interruption, token expiry UX, debug file logging,
@@ -325,6 +325,19 @@ Results expose IDs so `jellycli play <item-id>` can directly start any selected
 entry. The application service owns the full playback flow: saved-login
 validation, exact item lookup, resume selection, PlaybackInfo negotiation,
 mode-neutral planning, player startup, and Jellyfin state synchronization.
+
+## Phase 12 decisions
+
+The TUI uses Bubble Tea v2 with a plain, dependency-light renderer. Home loads
+Continue Watching, Next Up, and Recently Added through one application service;
+libraries and item hierarchies are loaded asynchronously. Navigation maintains a
+page stack across library, series, season, episode, movie, and search screens.
+
+Search input is an explicit mode, so printable `q` is inserted instead of
+quitting; Escape cancels input or navigates back according to context. Playback
+uses Bubble Tea's external-command lifecycle to release and restore the terminal
+while the application service owns mpv and Jellyfin synchronization. This keeps
+mpv's standard UI and key bindings usable without coupling the TUI to mpv.
 
 ## Primary references
 

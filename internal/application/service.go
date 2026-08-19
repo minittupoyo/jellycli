@@ -23,6 +23,12 @@ type Service struct {
 	player  player.Player
 }
 
+type HomeContent struct {
+	ContinueWatching []jellyfin.Item
+	NextUp           []jellyfin.Item
+	RecentlyAdded    []jellyfin.Item
+}
+
 // WithPlayer configures media playback and returns the service.
 func (s *Service) WithPlayer(p player.Player) *Service {
 	s.player = p
@@ -120,6 +126,52 @@ func (s *Service) Libraries(ctx context.Context) ([]jellyfin.Item, error) {
 	page, err := client.UserViews(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	return page.Items, nil
+}
+
+// Home loads the three video collections shown on the TUI home screen.
+func (s *Service) Home(ctx context.Context) (HomeContent, error) {
+	client, userID, _, _, err := s.authenticated(ctx)
+	if err != nil {
+		return HomeContent{}, err
+	}
+	resume, err := client.ResumeItems(ctx, userID, jellyfin.ResumeQuery{
+		Page:         jellyfin.PageOptions{Limit: 24},
+		IncludeTypes: []jellyfin.ItemKind{jellyfin.ItemKindMovie, jellyfin.ItemKindEpisode},
+	})
+	if err != nil {
+		return HomeContent{}, fmt.Errorf("load continue watching: %w", err)
+	}
+	next, err := client.NextUp(ctx, userID, jellyfin.NextUpQuery{Page: jellyfin.PageOptions{Limit: 24}})
+	if err != nil {
+		return HomeContent{}, fmt.Errorf("load next up: %w", err)
+	}
+	latest, err := client.Latest(ctx, userID, jellyfin.LatestQuery{
+		Limit: 24, IncludeTypes: []jellyfin.ItemKind{jellyfin.ItemKindMovie, jellyfin.ItemKindEpisode},
+	})
+	if err != nil {
+		return HomeContent{}, fmt.Errorf("load recently added: %w", err)
+	}
+	return HomeContent{ContinueWatching: resume.Items, NextUp: next.Items, RecentlyAdded: latest}, nil
+}
+
+// Browse returns the direct children appropriate for a library, series, or
+// season. Callers choose the desired item kinds; URL construction stays here.
+func (s *Service) Browse(ctx context.Context, parentID string, kinds []jellyfin.ItemKind) ([]jellyfin.Item, error) {
+	if parentID == "" {
+		return nil, errors.New("browse: parent ID is required")
+	}
+	client, userID, _, _, err := s.authenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+	page, err := client.Items(ctx, userID, jellyfin.ItemsQuery{
+		Page: jellyfin.PageOptions{Limit: 500}, ParentID: parentID,
+		IncludeTypes: kinds, Recursive: false, SortBy: []string{"SortName"}, SortOrder: "Ascending",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("browse: %w", err)
 	}
 	return page.Items, nil
 }

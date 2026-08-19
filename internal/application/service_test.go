@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"jellycli/internal/config"
+	"jellycli/internal/jellyfin"
 	"jellycli/internal/player"
 )
 
@@ -218,5 +219,52 @@ func TestLogoutClearsLocalTokenWhenServerFails(t *testing.T) {
 	state, err := store.LoadState()
 	if err != nil || state.Auth != nil {
 		t.Fatalf("local auth was not cleared: %#v, %v", state.Auth, err)
+	}
+}
+
+func TestHomeAndBrowseUseTypedCollections(t *testing.T) {
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch r.URL.Path {
+		case "/Users/Me":
+			_, _ = w.Write([]byte(`{"Id":"user"}`))
+		case "/UserItems/Resume":
+			_, _ = w.Write([]byte(`{"Items":[{"Id":"resume","Type":"Movie"}]}`))
+		case "/Shows/NextUp":
+			_, _ = w.Write([]byte(`{"Items":[{"Id":"next","Type":"Episode"}]}`))
+		case "/Items/Latest":
+			_, _ = w.Write([]byte(`[{"Id":"latest","Type":"Movie"}]`))
+		case "/Items":
+			if r.URL.Query().Get("parentId") != "series" || r.URL.Query().Get("includeItemTypes") != "Season" || r.URL.Query().Get("recursive") != "false" {
+				t.Errorf("browse query = %v", r.URL.Query())
+			}
+			_, _ = w.Write([]byte(`{"Items":[{"Id":"season","Type":"Season"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	root := t.TempDir()
+	store := config.NewStore(config.Paths{Settings: filepath.Join(root, "config.json"), State: filepath.Join(root, "state.json")})
+	if err := store.SaveSettings(config.Settings{ServerURL: server.URL}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveState(config.State{DeviceID: "device", Auth: &config.Auth{AccessToken: "token", UserID: "user"}}); err != nil {
+		t.Fatal(err)
+	}
+	service, _ := NewService(store, http.DefaultClient, "device", "dev")
+	home, err := service.Home(context.Background())
+	if err != nil || len(home.ContinueWatching) != 1 || len(home.NextUp) != 1 || len(home.RecentlyAdded) != 1 {
+		t.Fatalf("Home() = %#v, %v", home, err)
+	}
+	items, err := service.Browse(context.Background(), "series", []jellyfin.ItemKind{jellyfin.ItemKindSeason})
+	if err != nil || len(items) != 1 || items[0].ID != "season" {
+		t.Fatalf("Browse() = %#v, %v", items, err)
+	}
+	for _, want := range []string{"/UserItems/Resume", "/Shows/NextUp", "/Items/Latest", "/Items"} {
+		if !containsPath(paths, want) {
+			t.Errorf("paths missing %s: %#v", want, paths)
+		}
 	}
 }

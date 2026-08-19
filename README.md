@@ -8,7 +8,7 @@ separate application layer shared by the forthcoming TUI.
 
 ## Development
 
-Requires Go 1.24 or newer.
+Requires Go 1.25 or newer.
 
 ```sh
 go test ./...
@@ -24,6 +24,7 @@ printf '%s\n' 'your-password' | ./jellycli login https://jellyfin.example alice
 ./jellycli libraries
 ./jellycli search "title"
 ./jellycli play ITEM_ID
+./jellycli tui
 ./jellycli logout
 ```
 
