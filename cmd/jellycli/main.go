@@ -44,5 +44,6 @@ func run(ctx context.Context, args []string) int {
 	service.WithPlayer(mpv.New(mpv.Options{}))
 	return cli.RunWithDependencies(ctx, args, os.Stdout, os.Stderr, cli.Dependencies{
 		LibraryLister: service, Searcher: service, Player: service,
+		Authenticator: service, Stdin: os.Stdin,
 	})
 }

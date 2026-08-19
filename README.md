@@ -3,8 +3,8 @@
 `jellycli` is a Linux-first CLI/TUI client for browsing a Jellyfin library and
 playing video with mpv while synchronizing playback state with Jellyfin.
 
-The project is being implemented in verified phases. Phase 1 establishes a
-small, testable Go command without committing later layers to a CLI framework.
+The project is being implemented in verified phases with a testable CLI and a
+separate application layer shared by the forthcoming TUI.
 
 ## Development
 
@@ -16,11 +16,15 @@ go build ./cmd/jellycli
 ./jellycli help
 ```
 
-After a server URL and login state have been saved by the forthcoming login
-command, the current application path can list libraries with:
+Log in without placing the password in process arguments, then browse, search,
+and play by item ID:
 
 ```sh
+printf '%s\n' 'your-password' | ./jellycli login https://jellyfin.example alice
 ./jellycli libraries
+./jellycli search "title"
+./jellycli play ITEM_ID
+./jellycli logout
 ```
 
 See [docs/design.md](docs/design.md) for the researched API surface,

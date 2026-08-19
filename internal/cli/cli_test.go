@@ -19,6 +19,17 @@ type fakeFrontendService struct {
 	term   string
 	played string
 	err    error
+	login  []string
+	logout bool
+}
+
+func (f *fakeFrontendService) Login(_ context.Context, server, username, password string) error {
+	f.login = []string{server, username, password}
+	return f.err
+}
+func (f *fakeFrontendService) Logout(context.Context) error {
+	f.logout = true
+	return f.err
 }
 
 func (f *fakeFrontendService) Search(_ context.Context, term string) ([]jellyfin.Item, error) {
@@ -107,6 +118,40 @@ func TestRunSearchAndPlayRequireArguments(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		if code := RunWithDependencies(context.Background(), []string{command}, &stdout, &stderr, Dependencies{}); code != 2 {
 			t.Fatalf("%s code = %d, want 2", command, code)
+		}
+	}
+}
+
+func TestRunLoginAndLogout(t *testing.T) {
+	service := &fakeFrontendService{}
+	deps := Dependencies{Authenticator: service, Stdin: strings.NewReader("secret password\r\n")}
+	var stdout, stderr bytes.Buffer
+	if code := RunWithDependencies(context.Background(), []string{"login", "https://media.example", "alice"}, &stdout, &stderr, deps); code != 0 {
+		t.Fatalf("login code = %d, stderr = %q", code, stderr.String())
+	}
+	want := []string{"https://media.example", "alice", "secret password"}
+	if len(service.login) != len(want) {
+		t.Fatalf("login = %#v", service.login)
+	}
+	for i := range want {
+		if service.login[i] != want[i] {
+			t.Fatalf("login = %#v", service.login)
+		}
+	}
+	if code := RunWithDependencies(context.Background(), []string{"logout"}, &stdout, &stderr, deps); code != 0 || !service.logout {
+		t.Fatalf("logout code/state = %d/%v, stderr = %q", code, service.logout, stderr.String())
+	}
+}
+
+func TestRunLoginRejectsMissingOrOversizedPassword(t *testing.T) {
+	service := &fakeFrontendService{}
+	for _, input := range []string{"", strings.Repeat("x", 4097)} {
+		var stdout, stderr bytes.Buffer
+		code := RunWithDependencies(context.Background(), []string{"login", "https://media.example", "alice"}, &stdout, &stderr, Dependencies{
+			Authenticator: service, Stdin: strings.NewReader(input),
+		})
+		if code != 1 || len(service.login) != 0 {
+			t.Fatalf("input length %d: code/login = %d/%#v", len(input), code, service.login)
 		}
 	}
 }

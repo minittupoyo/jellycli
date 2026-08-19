@@ -29,6 +29,74 @@ func (s *Service) WithPlayer(p player.Player) *Service {
 	return s
 }
 
+// Login authenticates without persisting the password. Settings and the token
+// are saved only after the server accepts the credentials.
+func (s *Service) Login(ctx context.Context, serverURL, username, password string) error {
+	settings := config.Settings{ServerURL: serverURL}
+	normalized, err := settings.NormalizedServerURL()
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	if username == "" {
+		return errors.New("login: username is required")
+	}
+	deviceID, err := s.store.EnsureDeviceID()
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	client, err := jellyfin.NewClient(normalized, s.http, jellyfin.DeviceInfo{
+		Client: s.client, Device: s.device, DeviceID: deviceID, Version: s.version,
+	})
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	result, err := client.AuthenticateByName(ctx, username, password)
+	password = ""
+	if err != nil {
+		return err
+	}
+	if err := s.store.SaveSettings(settings); err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	if err := s.store.SaveAuth(config.Auth{AccessToken: result.AccessToken, UserID: result.User.ID}); err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	return nil
+}
+
+// Logout attempts server-side revocation and always clears the local token.
+func (s *Service) Logout(ctx context.Context) error {
+	var remoteErr error
+	settings, settingsErr := s.store.LoadSettings()
+	state, stateErr := s.store.LoadState()
+	if settingsErr == nil && stateErr == nil && state.Auth != nil && state.DeviceID != "" {
+		serverURL, err := settings.NormalizedServerURL()
+		if err == nil {
+			client, createErr := jellyfin.NewClient(serverURL, s.http, jellyfin.DeviceInfo{
+				Client: s.client, Device: s.device, DeviceID: state.DeviceID, Version: s.version,
+			})
+			if createErr == nil {
+				remoteErr = client.WithToken(state.Auth.AccessToken).Logout(ctx)
+			} else {
+				remoteErr = createErr
+			}
+		} else {
+			remoteErr = err
+		}
+	} else if settingsErr != nil && !errors.Is(settingsErr, fs.ErrNotExist) {
+		remoteErr = settingsErr
+	} else if stateErr != nil && !errors.Is(stateErr, fs.ErrNotExist) {
+		remoteErr = stateErr
+	}
+	if err := s.store.ClearAuth(); err != nil {
+		return errors.Join(remoteErr, fmt.Errorf("clear local login: %w", err))
+	}
+	if remoteErr != nil {
+		return fmt.Errorf("logout from server (local login cleared): %w", remoteErr)
+	}
+	return nil
+}
+
 func NewService(store *config.Store, httpClient jellyfin.HTTPDoer, deviceName, version string) (*Service, error) {
 	if store == nil || httpClient == nil {
 		return nil, errors.New("create application service: config store and HTTP client are required")

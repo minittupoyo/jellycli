@@ -227,9 +227,11 @@ can later be injected into Bubble Tea commands.
 
 `jellycli libraries` prints stable tabular columns for name, collection type, and
 ID and returns a nonzero status for configuration, authentication, network, or
-API errors. The process-wide HTTP client has a 30-second timeout. Login is still
-Phase 3 API capability rather than a public CLI command; its interactive command
-will be added before claiming end-user authentication UX complete.
+API errors. The process-wide HTTP client has a 30-second timeout. Login and
+logout are exposed as ordinary CLI commands. Login reads the password only from
+stdin so it does not enter process arguments or shell history; only the returned
+token and user ID are persisted. Logout attempts server revocation and clears
+local authentication even when the server cannot be reached.
 
 ## Phase 6 decisions
 

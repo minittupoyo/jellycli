@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -156,4 +157,66 @@ func containsPath(paths []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestLoginAndLogoutPersistOnlyToken(t *testing.T) {
+	var logoutToken bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/Users/AuthenticateByName":
+			_, _ = w.Write([]byte(`{"User":{"Id":"user-id"},"AccessToken":"secret-token"}`))
+		case "/Sessions/Logout":
+			logoutToken = strings.Contains(r.Header.Get("Authorization"), `Token="secret-token"`)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	root := t.TempDir()
+	store := config.NewStore(config.Paths{Settings: filepath.Join(root, "config.json"), State: filepath.Join(root, "state.json")})
+	service, err := NewService(store, http.DefaultClient, "device", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Login(context.Background(), server.URL+"/", "alice", "password-secret"); err != nil {
+		t.Fatal(err)
+	}
+	stateData, err := os.ReadFile(store.Paths().State)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stateData), "password-secret") || !strings.Contains(string(stateData), "secret-token") {
+		t.Fatalf("state = %s", stateData)
+	}
+	if err := service.Logout(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	state, err := store.LoadState()
+	if err != nil || state.Auth != nil || state.DeviceID == "" || !logoutToken {
+		t.Fatalf("logout state/token = %#v/%v, %v", state, logoutToken, err)
+	}
+}
+
+func TestLogoutClearsLocalTokenWhenServerFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	root := t.TempDir()
+	store := config.NewStore(config.Paths{Settings: filepath.Join(root, "config.json"), State: filepath.Join(root, "state.json")})
+	if err := store.SaveSettings(config.Settings{ServerURL: server.URL}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveState(config.State{DeviceID: "device", Auth: &config.Auth{AccessToken: "token", UserID: "user"}}); err != nil {
+		t.Fatal(err)
+	}
+	service, _ := NewService(store, http.DefaultClient, "device", "dev")
+	if err := service.Logout(context.Background()); err == nil {
+		t.Fatal("Logout() error = nil")
+	}
+	state, err := store.LoadState()
+	if err != nil || state.Auth != nil {
+		t.Fatalf("local auth was not cleared: %#v, %v", state.Auth, err)
+	}
 }

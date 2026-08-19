@@ -3,8 +3,10 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -31,10 +33,17 @@ type Player interface {
 	Play(context.Context, string) error
 }
 
+type Authenticator interface {
+	Login(context.Context, string, string, string) error
+	Logout(context.Context) error
+}
+
 type Dependencies struct {
 	LibraryLister LibraryLister
 	Searcher      Searcher
 	Player        Player
+	Authenticator Authenticator
+	Stdin         io.Reader
 }
 
 func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.Writer, deps Dependencies) int {
@@ -54,6 +63,45 @@ func RunWithDependencies(ctx context.Context, args []string, stdout, stderr io.W
 		return 0
 	case "version", "-v", "--version":
 		fmt.Fprintf(stdout, "jellycli %s\n", version)
+		return 0
+	case "login":
+		if len(args) != 3 {
+			fmt.Fprintln(stderr, "jellycli: usage: jellycli login <server-url> <username> < password-file")
+			return 2
+		}
+		if deps.Authenticator == nil {
+			fmt.Fprintln(stderr, "jellycli: login command is unavailable")
+			return 1
+		}
+		if deps.Stdin == nil {
+			fmt.Fprintln(stderr, "jellycli: login requires a password on stdin")
+			return 2
+		}
+		password, err := readPassword(deps.Stdin)
+		if err != nil {
+			fmt.Fprintf(stderr, "jellycli: login: %v\n", err)
+			return 1
+		}
+		if err := deps.Authenticator.Login(ctx, args[1], args[2], password); err != nil {
+			fmt.Fprintf(stderr, "jellycli: login: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, "Logged in.")
+		return 0
+	case "logout":
+		if len(args) != 1 {
+			fmt.Fprintln(stderr, "jellycli: usage: jellycli logout")
+			return 2
+		}
+		if deps.Authenticator == nil {
+			fmt.Fprintln(stderr, "jellycli: logout command is unavailable")
+			return 1
+		}
+		if err := deps.Authenticator.Logout(ctx); err != nil {
+			fmt.Fprintf(stderr, "jellycli: logout: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, "Logged out.")
 		return 0
 	case "libraries":
 		if deps.LibraryLister == nil {
@@ -113,12 +161,30 @@ Usage:
 Commands:
   help       Show this help
   version    Show the version
+	login       Log in; reads password from stdin
+	logout      Revoke and remove the saved token
   libraries  List Jellyfin libraries
 	search      Search videos by title
 	play        Play an item by ID
 
 Planned commands:
-  login, logout, tui`)
+  tui`)
+}
+
+func readPassword(r io.Reader) (string, error) {
+	const maxPasswordBytes = 4096
+	data, err := io.ReadAll(io.LimitReader(r, maxPasswordBytes+1))
+	if err != nil {
+		return "", fmt.Errorf("read password: %w", err)
+	}
+	if len(data) > maxPasswordBytes {
+		return "", errors.New("password exceeds 4096 bytes")
+	}
+	password := strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r")
+	if password == "" {
+		return "", errors.New("password is empty")
+	}
+	return password, nil
 }
 
 func printItems(w io.Writer, items []jellyfin.Item) {
