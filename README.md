@@ -1,105 +1,107 @@
 # jellycli
 
-`jellycli` is a Linux-first CLI/TUI client for browsing a Jellyfin library and
-playing video with mpv while synchronizing playback state with Jellyfin.
+[![Build](https://github.com/minittupoyo/jellycli/actions/workflows/build.yml/badge.svg)](https://github.com/minittupoyo/jellycli/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/minittupoyo/jellycli)](https://github.com/minittupoyo/jellycli/releases/latest)
 
-## Requirements
+`jellycli` is a Go-based CLI/TUI client for browsing and watching media from a Jellyfin server. It uses [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the terminal interface and `mpv` for playback.
 
-- Go 1.25 or newer (to build)
-- A reachable Jellyfin server
-- `mpv` available on `PATH`
+## Features
 
-## Build
+- Browse libraries, series, seasons, episodes, movies, and other media in a hierarchical TUI
+- Open Continue Watching, Next Up, and Recently Added views
+- Search episodes and top-level works such as series and movies
+- Select Direct Play, Direct Stream, or Transcode playback sources
+- Control `mpv` through JSON IPC and synchronize progress with Jellyfin
+- Resume playback and report start, progress, stop, and played state
+- Store configuration and credentials in private XDG-compatible files
+- Use script-friendly commands when a full TUI is unnecessary
 
-```sh
-go test ./...
-go build -o jellycli ./cmd/jellycli
-```
+## Platform support
 
-GitHub Actions runs tests, the race detector, and vet on every pull request and
-push to `main`, then builds on Linux, macOS, and Windows runners. It publishes
-amd64/arm64 artifacts for all three operating systems; tag pushes matching `v*`
-run the same verified build matrix.
+| Platform | Build | Playback support |
+| --- | --- | --- |
+| Linux amd64/arm64 | Released | Supported |
+| macOS amd64/arm64 | Released | Experimental |
+| Windows amd64/arm64 | Released | Not yet supported; named-pipe IPC remains to be implemented |
 
-To publish a release, create and push a semantic-version tag:
+## Install
 
-```sh
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
-```
+Download an archive for your platform from the [latest release](https://github.com/minittupoyo/jellycli/releases/latest).
 
-After every quality and build job succeeds, Actions creates the GitHub Release
-with generated notes, all six archives, and `checksums.txt`. Tags containing a
-hyphen, such as `v0.2.0-rc.1`, are published as prereleases. Release binaries
-report the tag through `jellycli version`.
-
-## Login and commands
-
-The password is requested interactively without echoing it and is never stored:
+For example, on Linux amd64:
 
 ```sh
-./jellycli login https://jellyfin.example alice
+version=0.1.0
+curl -LO "https://github.com/minittupoyo/jellycli/releases/download/v${version}/jellycli-linux-amd64.tar.gz"
+curl -LO "https://github.com/minittupoyo/jellycli/releases/download/v${version}/checksums.txt"
+sha256sum --check --ignore-missing checksums.txt
+tar -xzf jellycli-linux-amd64.tar.gz
+install -m 0755 jellycli ~/.local/bin/jellycli
 ```
 
-For automation, redirect a password file or pipe stdin; non-terminal input is
-read without displaying a prompt.
+To build from source, install Go 1.25 or newer and run:
 
-```text
+```sh
+git clone https://github.com/minittupoyo/jellycli.git
+cd jellycli
+go build ./cmd/jellycli
+```
+
+Install `mpv` separately and ensure it is available on `PATH` before starting playback.
+
+## Quick start
+
+Log in interactively:
+
+```sh
+jellycli login
+```
+
+Then launch the TUI. Running without a subcommand starts it by default:
+
+```sh
 jellycli
+```
+
+Useful non-interactive commands include:
+
+```sh
 jellycli libraries
 jellycli search "title"
 jellycli play ITEM_ID
-jellycli tui
 jellycli logout
 ```
 
-Running `jellycli` without a command starts the TUI. Search results include
-movies, series, episodes, and other videos; selecting a series opens its seasons.
+Run `jellycli help` or `jellycli help COMMAND` for the complete command reference.
 
-The TUI keys are `↑`/`k`, `↓`/`j`, `Enter`, `Esc`, `/`, and `q`. While entering
-a search query, `q` is ordinary text and `Esc` cancels the query. mpv runs with
-its normal UI and key bindings; the TUI releases the terminal for playback and
-restores it afterward.
+## TUI controls
+
+| Key | Action |
+| --- | --- |
+| `↑`/`k`, `↓`/`j` | Move selection |
+| `enter` | Open or play the selected item |
+| `esc` | Go back or cancel search |
+| `/` | Search |
+| `q`/`ctrl+c` | Quit |
 
 ## Configuration and security
 
-Settings are stored below `${XDG_CONFIG_HOME:-~/.config}/jellycli`; the stable
-device ID and access token are below
-`${XDG_STATE_HOME:-~/.local/state}/jellycli`. Files use mode `0600` and managed
-directories use mode `0700`. Passwords are not persisted. Tokens are sent to mpv
-through a private temporary config file, not through its command arguments or
-media URL.
+Configuration follows the XDG base-directory convention. Authentication data is written with owner-only permissions. Do not commit, publish, or paste files containing server URLs, access tokens, usernames, or device identifiers.
 
-Debug logging is disabled by default. To enable JSON logs without writing over
-the TUI, edit `config.json`:
+If credentials may have been exposed, revoke the Jellyfin access token and run `jellycli login` again.
 
-```json
-{
-  "server_url": "https://jellyfin.example",
-  "debug": true
-}
-```
+## Documentation
 
-The default log is `${XDG_STATE_HOME:-~/.local/state}/jellycli/debug.log` with
-mode `0600`. Set `log_file` in `config.json` to choose another path. Known access
-tokens and authentication query parameters are redacted.
+- [Architecture](docs/architecture.md)
+- [Detailed design and implementation history](docs/design.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
 
-## End-to-end smoke test
+## Releases
 
-1. Run `jellycli login`, then `jellycli libraries` and `jellycli search TITLE`.
-2. Run `jellycli play ITEM_ID`; confirm mpv opens and its pause/seek keys work.
-3. Stop near the middle, reopen the item, and confirm playback resumes.
-4. In Jellyfin Web, confirm Now Playing, progress, Continue Watching, and the
-   final stopped position update.
-5. Run `jellycli tui`; traverse Movies and Series → Seasons → Episodes, search
-   with `/`, play a result, return with `Esc`, and quit with `q`.
-6. Interrupt playback with Ctrl-C and confirm Jellyfin receives the final
-   position. Temporarily disconnect the server and confirm a concise network
-   message is shown; re-login after invalidating the token and confirm recovery.
+Version tags matching `v*` trigger GitHub Actions to build archives for supported targets, generate checksums, and publish a GitHub release.
 
-Linux is the supported playback target. Process/player interfaces and
-platform-specific IPC/signal adapters are separated for future macOS and Windows
-support; Windows named-pipe playback is not implemented yet.
+## License
 
-See [docs/design.md](docs/design.md) for API choices, architecture, and the
-implementation phases.
+No software license has been granted for this repository yet. Public availability does not by itself grant permission to copy, modify, or redistribute the code. A license may be added in a future release.
